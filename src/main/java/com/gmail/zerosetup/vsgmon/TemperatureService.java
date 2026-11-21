@@ -49,7 +49,15 @@ public class TemperatureService {
                     .timeout(10000)
                     .get();
 
-            // Find the span element with "Температура:" and get the next span with the temperature
+            // Current layout: <strong data-weather-temperature>1.9 °C</strong>
+            Element current = doc.selectFirst("[data-weather-temperature]");
+            if (current != null && !current.text().isBlank()) {
+                String temperature = current.text().trim();
+                log.info("Successfully fetched TTS temperature: {}", temperature);
+                return temperature;
+            }
+
+            // Legacy layout: span "Температура:" followed by a span with the value
             Elements elements = doc.select("span.blue:contains(Температура:)");
 
             if (!elements.isEmpty()) {
