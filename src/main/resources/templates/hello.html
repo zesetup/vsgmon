@@ -191,6 +191,10 @@
             font-variant-numeric: tabular-nums;
         }
 
+        .stat .dir:empty {
+            display: none;
+        }
+
         .stat .dir {
             margin-left: 6px;
             font-size: 0.8rem;
@@ -208,6 +212,11 @@
             color: inherit;
             text-decoration: none;
             border-bottom: 1px dotted currentColor;
+        }
+
+        footer .error {
+            color: #fbbf24;
+            margin-left: 8px;
         }
 
         footer {
@@ -355,49 +364,49 @@
     </header>
 
     <section class="grid">
-        <article class="card">
+        <article class="card" data-source="sugardas">
             <div class="card-head"><span class="name">Sugardas</span><span class="dot"></span></div>
             <div class="value" th:attr="data-raw=${sugardas.temperature}"><span class="number" th:text="${sugardas.temperature} ?: 'Temperature not available'">--</span></div>
             <dl class="stats">
                 <div class="stat">
                     <dt><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3s6 6.6 6 11a6 6 0 0 1-12 0c0-4.4 6-11 6-11z"/></svg>Humidity</dt>
-                    <dd th:text="${sugardas.humidity} ?: '—'">—</dd>
+                    <dd data-field="humidity" th:text="${sugardas.humidity} ?: '—'">—</dd>
                 </div>
                 <div class="stat">
                     <dt><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8h11a3 3 0 1 0-3-3M3 12h16a3 3 0 1 1-3 3M3 16h8"/></svg>Wind</dt>
-                    <dd><span th:text="${sugardas.windSpeed} ?: '—'">—</span><span class="dir" th:if="${sugardas.windDirection}" th:text="${sugardas.windDirection}"></span></dd>
+                    <dd><span data-field="windSpeed" th:text="${sugardas.windSpeed} ?: '—'">—</span><span class="dir" data-field="windDirection" th:text="${sugardas.windDirection}"></span></dd>
                 </div>
             </dl>
             <div class="source"><a href="http://web.sugardas.lt/" target="_blank" rel="noopener">web.sugardas.lt</a></div>
         </article>
 
-        <article class="card">
+        <article class="card" data-source="tts">
             <div class="card-head"><span class="name">TTS</span><span class="dot"></span></div>
             <div class="value" th:attr="data-raw=${tts.temperature}"><span class="number" th:text="${tts.temperature} ?: 'Temperature not available'">--</span></div>
             <dl class="stats">
                 <div class="stat">
                     <dt><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3s6 6.6 6 11a6 6 0 0 1-12 0c0-4.4 6-11 6-11z"/></svg>Humidity</dt>
-                    <dd th:text="${tts.humidity} ?: '—'">—</dd>
+                    <dd data-field="humidity" th:text="${tts.humidity} ?: '—'">—</dd>
                 </div>
                 <div class="stat">
                     <dt><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8h11a3 3 0 1 0-3-3M3 12h16a3 3 0 1 1-3 3M3 16h8"/></svg>Wind</dt>
-                    <dd><span th:text="${tts.windSpeed} ?: '—'">—</span><span class="dir" th:if="${tts.windDirection}" th:text="${tts.windDirection}"></span></dd>
+                    <dd><span data-field="windSpeed" th:text="${tts.windSpeed} ?: '—'">—</span><span class="dir" data-field="windDirection" th:text="${tts.windDirection}"></span></dd>
                 </div>
             </dl>
             <div class="source"><a href="https://web.tts.lt/" target="_blank" rel="noopener">web.tts.lt</a></div>
         </article>
 
-        <article class="card">
+        <article class="card" data-source="iae">
             <div class="card-head"><span class="name">IAE</span><span class="dot"></span></div>
             <div class="value" th:attr="data-raw=${iae.temperature}"><span class="number" th:text="${iae.temperature} ?: 'Temperature not available'">--</span></div>
             <dl class="stats">
                 <div class="stat">
                     <dt><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3s6 6.6 6 11a6 6 0 0 1-12 0c0-4.4 6-11 6-11z"/></svg>Humidity</dt>
-                    <dd th:text="${iae.humidity} ?: '—'">—</dd>
+                    <dd data-field="humidity" th:text="${iae.humidity} ?: '—'">—</dd>
                 </div>
                 <div class="stat">
                     <dt><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8h11a3 3 0 1 0-3-3M3 12h16a3 3 0 1 1-3 3M3 16h8"/></svg>Wind</dt>
-                    <dd><span th:text="${iae.windSpeed} ?: '—'">—</span><span class="dir" th:if="${iae.windDirection}" th:text="${iae.windDirection}"></span></dd>
+                    <dd><span data-field="windSpeed" th:text="${iae.windSpeed} ?: '—'">—</span><span class="dir" data-field="windDirection" th:text="${iae.windDirection}"></span></dd>
                 </div>
             </dl>
             <div class="source"><a href="https://altra.lt/aktualu/radiacinis-monitoringas/" target="_blank" rel="noopener">altra.lt</a></div>
@@ -433,7 +442,7 @@
     </section>
 
     <footer>
-        Next update in <span id="countdown">10</span> s
+        Next update in <span id="countdown">10</span> s<span class="error" id="update-error"></span>
         <div class="progress"><div id="progress-bar"></div></div>
     </footer>
 </main>
@@ -456,25 +465,43 @@
         return '#f87171';
     }
 
-    // Split values like "+0.7 C" / "+0.8 °C" into a big number and a "°C" unit.
-    document.querySelectorAll('.value').forEach(el => {
-        const raw = (el.dataset.raw || '').trim();
+    const NOT_AVAILABLE = 'Temperature not available';
+
+    // Show values like "+0.7 C" / "+0.8 °C" as a big number and a "°C" unit, and tint the card.
+    function renderTemperature(valueEl, raw) {
+        raw = (raw || '').trim();
+        const card = valueEl.closest('.card');
         const m = raw.match(/^([+\-−]?\d+(?:[.,]\d+)?)\s*°?\s*C?$/i);
-        if (!m) {
-            el.classList.add('raw');
-            return;
-        }
-        const number = m[1].replace('−', '-');
-        el.innerHTML = '';
+        valueEl.innerHTML = '';
         const n = document.createElement('span');
         n.className = 'number';
+        if (!m) {
+            valueEl.classList.add('raw');
+            n.textContent = raw || NOT_AVAILABLE;
+            valueEl.append(n);
+            card.style.removeProperty('--tone');
+            return;
+        }
+        valueEl.classList.remove('raw');
+        const number = m[1].replace('−', '-');
         n.textContent = number;
         const u = document.createElement('span');
         u.className = 'unit';
         u.textContent = '°C';
-        el.append(n, u);
-        el.closest('.card').style.setProperty('--tone', toneFor(parseFloat(number.replace(',', '.'))));
-    });
+        valueEl.append(n, u);
+        card.style.setProperty('--tone', toneFor(parseFloat(number.replace(',', '.'))));
+    }
+
+    function updateCard(source, w) {
+        const card = document.querySelector(`.card[data-source="${source}"]`);
+        if (!card || !w) return;
+        renderTemperature(card.querySelector('.value'), w.temperature);
+        card.querySelector('[data-field="humidity"]').textContent = w.humidity || '—';
+        card.querySelector('[data-field="windSpeed"]').textContent = w.windSpeed || '—';
+        card.querySelector('[data-field="windDirection"]').textContent = w.windDirection || '';
+    }
+
+    document.querySelectorAll('.value').forEach(el => renderTemperature(el, el.dataset.raw));
 
     // ---- History charts ----
     const SERIES = {
@@ -626,10 +653,36 @@
         try { renderTable(); } catch (e) { console.log('Table failed:', e); }
     }
 
-    fetch('/api/history')
-        .then(r => r.json())
-        .then(data => { history = data; renderAll(); })
-        .catch(err => console.log('History load failed:', err));
+    let historyJson = '';
+
+    function loadHistory() {
+        return fetch('/api/history', { cache: 'no-store' })
+            .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.text(); })
+            .then(text => {
+                // Re-render only when something changed, so an open tooltip is not reset every 10 s
+                if (text === historyJson) return;
+                historyJson = text;
+                history = JSON.parse(text);
+                renderAll();
+            });
+    }
+
+    function loadCurrent() {
+        return fetch('/api/current', { cache: 'no-store' })
+            .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+            .then(data => Object.keys(data).forEach(source => updateCard(source, data[source])));
+    }
+
+    function refreshData() {
+        const errorEl = document.getElementById('update-error');
+        return Promise.allSettled([loadCurrent(), loadHistory()]).then(results => {
+            const failed = results.some(r => r.status === 'rejected');
+            results.filter(r => r.status === 'rejected').forEach(r => console.log('Update failed:', r.reason));
+            errorEl.textContent = failed ? '· update failed, retrying' : '';
+        });
+    }
+
+    loadHistory().catch(err => console.log('History load failed:', err));
 
     window.addEventListener('resize', () => { if (history.length) renderAll(); });
 
@@ -642,16 +695,20 @@
     tick();
     setInterval(tick, 1000);
 
-    // Auto-refresh with countdown
+    // Auto-refresh with countdown: data is fetched in the background, the page is not reloaded
     const REFRESH_SECONDS = 10;
     let remaining = REFRESH_SECONDS;
+    let refreshing = false;
     const countdownEl = document.getElementById('countdown');
     const bar = document.getElementById('progress-bar');
 
     function updateCountdown() {
         if (remaining <= 0) {
-            location.reload();
-            return;
+            if (!refreshing && !document.hidden) {
+                refreshing = true;
+                refreshData().finally(() => { refreshing = false; });
+            }
+            remaining = REFRESH_SECONDS;
         }
         countdownEl.textContent = remaining;
         bar.style.transform = 'scaleX(' + (remaining / REFRESH_SECONDS) + ')';
@@ -659,6 +716,11 @@
     }
     updateCountdown();
     setInterval(updateCountdown, 1000);
+
+    // Catch up right away when the tab becomes visible again
+    document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) remaining = 0;
+    });
 </script>
 </body>
 </html>
