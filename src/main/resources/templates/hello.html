@@ -7,7 +7,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="VSG Temp">
-    <link rel="manifest" href="/manifest.json">
+    <link rel="manifest" href="manifest.json">
     <title>VSG Temperature</title>
     <style>
         :root {
@@ -450,7 +450,7 @@
 <script>
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-            navigator.serviceWorker.register('/service-worker.js')
+            navigator.serviceWorker.register('service-worker.js')
                 .catch(err => console.log('Service Worker registration failed:', err));
         });
     }
@@ -521,7 +521,7 @@
     }
 
     function hhmm(t) {
-        return new Date(t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        return new Date(t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
     }
 
     function niceTicks(lo, hi, count) {
@@ -581,9 +581,13 @@
             el('text', { class: 'axis-label', x: m.left - 6, y: y(v) + 4, 'text-anchor': 'end' }, svg).textContent = v;
         });
 
-        // Hourly time labels
+        // Time labels every 1, 2 or 3 hours, whichever leaves enough room between them
         const hour = 3600 * 1000;
-        for (let t = Math.ceil(x0 / hour) * hour; t <= x1; t += hour) {
+        const plotWidth = W - m.left - m.right;
+        const stepHours = [1, 2, 3].find(h => plotWidth / (6 / h) >= 48) || 3;
+        const step = stepHours * hour;
+        for (let t = Math.ceil(x0 / step) * step; t <= x1; t += step) {
+            if (x(t) < m.left + 16 || x(t) > W - m.right - 16) continue;
             el('text', { class: 'axis-label', x: x(t), y: H - 4, 'text-anchor': 'middle' }, svg).textContent = hhmm(t);
         }
 
@@ -656,7 +660,7 @@
     let historyJson = '';
 
     function loadHistory() {
-        return fetch('/api/history', { cache: 'no-store' })
+        return fetch('api/history', { cache: 'no-store' })
             .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.text(); })
             .then(text => {
                 // Re-render only when something changed, so an open tooltip is not reset every 10 s
@@ -668,7 +672,7 @@
     }
 
     function loadCurrent() {
-        return fetch('/api/current', { cache: 'no-store' })
+        return fetch('api/current', { cache: 'no-store' })
             .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
             .then(data => Object.keys(data).forEach(source => updateCard(source, data[source])));
     }
@@ -695,6 +699,7 @@
     tick();
     setInterval(tick, 1000);
 
+    // Paths are relative (no leading "/") so the page also works behind a proxy prefix like /vsg/
     // Auto-refresh with countdown: data is fetched in the background, the page is not reloaded
     const REFRESH_SECONDS = 10;
     let remaining = REFRESH_SECONDS;

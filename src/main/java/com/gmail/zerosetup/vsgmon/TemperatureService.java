@@ -5,6 +5,7 @@ import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
@@ -16,9 +17,6 @@ import java.util.regex.Pattern;
 public class TemperatureService {
 
     private static final Logger log = LoggerFactory.getLogger(TemperatureService.class);
-    private static final String SUGARDAS_URL = "http://web.sugardas.lt/";
-    private static final String TTS_URL = "https://web.tts.lt/";
-    private static final String IAE_URL = "https://altra.lt/aktualu/radiacinis-monitoringas/";
     private static final Pattern LEADING_NUMBER = Pattern.compile("^(\\d+(?:[.,]\\d+)?)");
     private static final Pattern NUMBER = Pattern.compile("(\\d+(?:[.,]\\d+)?)");
     // Sugardas wind: "V 1.2 m/s" — Lithuanian direction letters before the speed
@@ -30,9 +28,18 @@ public class TemperatureService {
     private volatile Weather iae = Weather.EMPTY;
 
     private final ReadingRepository readings;
+    private final String sugardasUrl;
+    private final String ttsUrl;
+    private final String iaeUrl;
 
-    public TemperatureService(ReadingRepository readings) {
+    public TemperatureService(ReadingRepository readings,
+                              @Value("${vsgmon.sugardas.url:http://web.sugardas.lt/}") String sugardasUrl,
+                              @Value("${vsgmon.tts.url:https://web.tts.lt/}") String ttsUrl,
+                              @Value("${vsgmon.iae.url:https://altra.lt/aktualu/radiacinis-monitoringas/}") String iaeUrl) {
         this.readings = readings;
+        this.sugardasUrl = sugardasUrl;
+        this.ttsUrl = ttsUrl;
+        this.iaeUrl = iaeUrl;
     }
 
     public Weather getSugardas() {
@@ -50,9 +57,9 @@ public class TemperatureService {
     @Scheduled(initialDelay = 0, fixedRate = 60_000)
     public void refresh() {
         // A failed fetch (or a missing field) keeps the last good value.
-        sugardas = sugardas.mergedWith(fetchAndStore("Sugardas", SUGARDAS_URL, TemperatureService::parseSugardas));
-        tts = tts.mergedWith(fetchAndStore("TTS", TTS_URL, TemperatureService::parseTts));
-        iae = iae.mergedWith(fetchAndStore("IAE", IAE_URL, TemperatureService::parseIae));
+        sugardas = sugardas.mergedWith(fetchAndStore("Sugardas", sugardasUrl, TemperatureService::parseSugardas));
+        tts = tts.mergedWith(fetchAndStore("TTS", ttsUrl, TemperatureService::parseTts));
+        iae = iae.mergedWith(fetchAndStore("IAE", iaeUrl, TemperatureService::parseIae));
     }
 
     // Only fresh values go to the history, never the cached fallbacks.

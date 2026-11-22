@@ -1,7 +1,7 @@
-const CACHE_NAME = 'vsg-temp-v1';
+const CACHE_NAME = 'vsg-temp-v2';
 const urlsToCache = [
-  '/',
-  '/manifest.json'
+  './',
+  './manifest.json'
 ];
 
 // Install service worker
