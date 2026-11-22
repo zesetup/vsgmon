@@ -1,134 +1,661 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="theme-color" content="#667eea">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#0b1020">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="VSG Temp">
     <link rel="manifest" href="/manifest.json">
     <title>VSG Temperature</title>
     <style>
+        :root {
+            --bg: #0b1020;
+            --card: rgba(255, 255, 255, 0.06);
+            --card-border: rgba(255, 255, 255, 0.10);
+            --text: #eef2ff;
+            --muted: #94a3b8;
+            --accent: #818cf8;
+        }
+
+        * { box-sizing: border-box; }
+
         body {
-            font-family: Arial, sans-serif;
+            margin: 0;
+            min-height: 100vh;
+            font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+            color: var(--text);
+            background:
+                radial-gradient(60rem 40rem at 10% -10%, rgba(99, 102, 241, 0.35), transparent 60%),
+                radial-gradient(50rem 35rem at 110% 110%, rgba(236, 72, 153, 0.25), transparent 60%),
+                var(--bg);
             display: flex;
             justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            margin: 0;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: max(24px, env(safe-area-inset-top)) 16px 32px;
         }
-        .greeting-container {
-            text-align: center;
-            background: white;
-            padding: 50px;
-            border-radius: 10px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
-            max-width: 600px;
-            width: 90%;
+
+        main {
+            width: 100%;
+            max-width: 960px;
         }
+
+        header {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 24px;
+        }
+
         h1 {
-            color: #333;
-            font-size: 3em;
-            margin: 0 0 20px 0;
+            margin: 0;
+            font-size: clamp(1.6rem, 4vw, 2.2rem);
+            font-weight: 700;
+            letter-spacing: -0.02em;
         }
-        p {
-            color: #666;
-            font-size: 1.2em;
-            margin-top: 20px;
+
+        .subtitle {
+            margin: 4px 0 0;
+            color: var(--muted);
+            font-size: 0.95rem;
         }
-        .temperature {
-            font-size: 4em;
-            font-weight: bold;
-            color: #667eea;
-            margin: 20px 0;
+
+        .clock {
+            color: var(--muted);
+            font-variant-numeric: tabular-nums;
+            font-size: 0.95rem;
         }
-        .temp-title {
-            color: #555;
-            font-size: 1.5em;
-            margin-top: 20px;
-            margin-bottom: 10px;
-            font-weight: bold;
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 16px;
         }
-        .temp-section {
-            margin: 30px 0;
-            padding: 20px;
-            border-bottom: 2px solid #eee;
+
+        .card {
+            position: relative;
+            overflow: hidden;
+            padding: 22px 24px 26px;
+            border-radius: 20px;
+            background: var(--card);
+            border: 1px solid var(--card-border);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+            transition: transform 0.2s ease, border-color 0.2s ease;
         }
-        .temp-section:last-of-type {
-            border-bottom: none;
+
+        .card:hover {
+            transform: translateY(-2px);
+            border-color: rgba(255, 255, 255, 0.2);
         }
-        .countdown {
-            color: #999;
-            font-size: 1em;
-            margin-top: 30px;
-            padding: 10px;
-            background-color: #f5f5f5;
-            border-radius: 5px;
+
+        .card::before {
+            content: "";
+            position: absolute;
+            inset: 0 0 auto 0;
+            height: 4px;
+            background: var(--tone, var(--accent));
         }
-        .countdown-number {
-            font-weight: bold;
-            color: #667eea;
-            font-size: 1.2em;
+
+        .card-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 14px;
         }
+
+        .name {
+            font-size: 0.85rem;
+            font-weight: 600;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--muted);
+        }
+
+        .dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--tone, var(--accent));
+            box-shadow: 0 0 12px var(--tone, var(--accent));
+        }
+
+        .value {
+            display: flex;
+            align-items: flex-start;
+            gap: 4px;
+            font-variant-numeric: tabular-nums;
+            line-height: 1;
+        }
+
+        .number {
+            font-size: clamp(3rem, 9vw, 4.2rem);
+            font-weight: 700;
+            letter-spacing: -0.03em;
+        }
+
+        .unit {
+            font-size: 1.4rem;
+            font-weight: 500;
+            color: var(--muted);
+            margin-top: 0.4rem;
+        }
+
+        .value.raw .number {
+            font-size: 1.1rem;
+            font-weight: 500;
+            color: var(--muted);
+            line-height: 1.4;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin: 20px 0 0;
+        }
+
+        .stat {
+            padding: 10px 12px;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .stat dt {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.75rem;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+
+        .stat svg {
+            width: 14px;
+            height: 14px;
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        .stat dd {
+            margin: 6px 0 0;
+            font-size: 1.15rem;
+            font-weight: 600;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .stat .dir {
+            margin-left: 6px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--muted);
+        }
+
         .source {
-            color: #999;
-            font-size: 0.9em;
-            margin-top: 20px;
+            margin-top: 16px;
+            font-size: 0.8rem;
+            color: var(--muted);
         }
+
+        .source a {
+            color: inherit;
+            text-decoration: none;
+            border-bottom: 1px dotted currentColor;
+        }
+
+        footer {
+            margin-top: 28px;
+            color: var(--muted);
+            font-size: 0.85rem;
+        }
+
+        .progress {
+            height: 4px;
+            border-radius: 4px;
+            background: rgba(255, 255, 255, 0.08);
+            overflow: hidden;
+            margin-top: 8px;
+        }
+
+        .progress > div {
+            height: 100%;
+            width: 100%;
+            background: linear-gradient(90deg, #818cf8, #ec4899);
+            transform-origin: left;
+        }
+        .history {
+            margin-top: 32px;
+        }
+
+        .history h2 {
+            margin: 0 0 4px;
+            font-size: 1.15rem;
+            font-weight: 600;
+        }
+
+        .history .subtitle {
+            margin-bottom: 16px;
+        }
+
+        .charts {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 16px;
+        }
+
+        .chart-card {
+            padding: 18px 18px 12px;
+            border-radius: 20px;
+            background: var(--card);
+            border: 1px solid var(--card-border);
+        }
+
+        .chart-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            margin-bottom: 8px;
+        }
+
+        .chart-head .latest {
+            font-size: 1.1rem;
+            font-weight: 600;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .chart {
+            position: relative;
+            height: 160px;
+        }
+
+        .chart svg {
+            display: block;
+            width: 100%;
+            height: 100%;
+            overflow: visible;
+        }
+
+        .chart .grid-line { stroke: rgba(255, 255, 255, 0.08); stroke-width: 1; }
+        .chart .axis-label { fill: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+        .chart .line { fill: none; stroke: var(--accent); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+        .chart .area { fill: var(--accent); opacity: 0.12; }
+        .chart .crosshair { stroke: rgba(255, 255, 255, 0.35); stroke-width: 1; }
+        .chart .marker { fill: var(--accent); stroke: var(--bg); stroke-width: 2; }
+
+        .chart .tooltip {
+            position: absolute;
+            top: 0;
+            pointer-events: none;
+            padding: 6px 10px;
+            border-radius: 8px;
+            background: rgba(15, 23, 42, 0.95);
+            border: 1px solid var(--card-border);
+            font-size: 0.8rem;
+            white-space: nowrap;
+            transform: translateX(-50%);
+            display: none;
+        }
+
+        .chart .tooltip b { font-variant-numeric: tabular-nums; }
+
+        .chart .empty {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--muted);
+            font-size: 0.9rem;
+        }
+
+        details.table-view {
+            margin-top: 12px;
+            color: var(--muted);
+            font-size: 0.85rem;
+        }
+
+        details.table-view summary { cursor: pointer; }
+
+        details.table-view .scroll {
+            max-height: 260px;
+            overflow: auto;
+            margin-top: 8px;
+        }
+
+        details.table-view table {
+            width: 100%;
+            border-collapse: collapse;
+            font-variant-numeric: tabular-nums;
+        }
+
+        details.table-view th, details.table-view td {
+            padding: 4px 8px;
+            text-align: right;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        details.table-view th:first-child, details.table-view td:first-child { text-align: left; }
     </style>
 </head>
 <body>
-    <div class="greeting-container">
-        <h1 th:text="${message}">Visaginas Temperature</h1>
-
-        <div class="temp-section">
-            <p class="temp-title">Sugardas:</p>
-            <div class="temperature" th:text="${temperature}">--°C</div>
+<main>
+    <header>
+        <div>
+            <h1>Visaginas</h1>
+            <p class="subtitle">Current outdoor weather</p>
         </div>
+        <div class="clock" id="clock"></div>
+    </header>
 
-        <div class="temp-section">
-            <p class="temp-title">TTS:</p>
-            <div class="temperature" th:text="${ttsTemperature}">--°C</div>
+    <section class="grid">
+        <article class="card">
+            <div class="card-head"><span class="name">Sugardas</span><span class="dot"></span></div>
+            <div class="value" th:attr="data-raw=${sugardas.temperature}"><span class="number" th:text="${sugardas.temperature} ?: 'Temperature not available'">--</span></div>
+            <dl class="stats">
+                <div class="stat">
+                    <dt><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3s6 6.6 6 11a6 6 0 0 1-12 0c0-4.4 6-11 6-11z"/></svg>Humidity</dt>
+                    <dd th:text="${sugardas.humidity} ?: '—'">—</dd>
+                </div>
+                <div class="stat">
+                    <dt><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8h11a3 3 0 1 0-3-3M3 12h16a3 3 0 1 1-3 3M3 16h8"/></svg>Wind</dt>
+                    <dd><span th:text="${sugardas.windSpeed} ?: '—'">—</span><span class="dir" th:if="${sugardas.windDirection}" th:text="${sugardas.windDirection}"></span></dd>
+                </div>
+            </dl>
+            <div class="source"><a href="http://web.sugardas.lt/" target="_blank" rel="noopener">web.sugardas.lt</a></div>
+        </article>
+
+        <article class="card">
+            <div class="card-head"><span class="name">TTS</span><span class="dot"></span></div>
+            <div class="value" th:attr="data-raw=${tts.temperature}"><span class="number" th:text="${tts.temperature} ?: 'Temperature not available'">--</span></div>
+            <dl class="stats">
+                <div class="stat">
+                    <dt><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3s6 6.6 6 11a6 6 0 0 1-12 0c0-4.4 6-11 6-11z"/></svg>Humidity</dt>
+                    <dd th:text="${tts.humidity} ?: '—'">—</dd>
+                </div>
+                <div class="stat">
+                    <dt><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8h11a3 3 0 1 0-3-3M3 12h16a3 3 0 1 1-3 3M3 16h8"/></svg>Wind</dt>
+                    <dd><span th:text="${tts.windSpeed} ?: '—'">—</span><span class="dir" th:if="${tts.windDirection}" th:text="${tts.windDirection}"></span></dd>
+                </div>
+            </dl>
+            <div class="source"><a href="https://web.tts.lt/" target="_blank" rel="noopener">web.tts.lt</a></div>
+        </article>
+
+        <article class="card">
+            <div class="card-head"><span class="name">IAE</span><span class="dot"></span></div>
+            <div class="value" th:attr="data-raw=${iae.temperature}"><span class="number" th:text="${iae.temperature} ?: 'Temperature not available'">--</span></div>
+            <dl class="stats">
+                <div class="stat">
+                    <dt><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3s6 6.6 6 11a6 6 0 0 1-12 0c0-4.4 6-11 6-11z"/></svg>Humidity</dt>
+                    <dd th:text="${iae.humidity} ?: '—'">—</dd>
+                </div>
+                <div class="stat">
+                    <dt><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8h11a3 3 0 1 0-3-3M3 12h16a3 3 0 1 1-3 3M3 16h8"/></svg>Wind</dt>
+                    <dd><span th:text="${iae.windSpeed} ?: '—'">—</span><span class="dir" th:if="${iae.windDirection}" th:text="${iae.windDirection}"></span></dd>
+                </div>
+            </dl>
+            <div class="source"><a href="https://altra.lt/aktualu/radiacinis-monitoringas/" target="_blank" rel="noopener">altra.lt</a></div>
+        </article>
+    </section>
+
+    <section class="history">
+        <h2>Last 6 hours</h2>
+        <p class="subtitle">Average of Sugardas, TTS and IAE, 5-minute intervals</p>
+        <div class="charts">
+            <div class="chart-card">
+                <div class="chart-head"><span class="name">Temperature</span><span class="latest" id="latest-temperature"></span></div>
+                <div class="chart" id="chart-temperature"></div>
+            </div>
+            <div class="chart-card">
+                <div class="chart-head"><span class="name">Humidity</span><span class="latest" id="latest-humidity"></span></div>
+                <div class="chart" id="chart-humidity"></div>
+            </div>
+            <div class="chart-card">
+                <div class="chart-head"><span class="name">Wind</span><span class="latest" id="latest-windSpeed"></span></div>
+                <div class="chart" id="chart-windSpeed"></div>
+            </div>
         </div>
+        <details class="table-view">
+            <summary>Show as table</summary>
+            <div class="scroll">
+                <table>
+                    <thead><tr><th>Time</th><th>Temperature, °C</th><th>Humidity, %</th><th>Wind, m/s</th></tr></thead>
+                    <tbody id="history-table"></tbody>
+                </table>
+            </div>
+        </details>
+    </section>
 
-        <p>Current temperature in Visaginas</p>
+    <footer>
+        Next update in <span id="countdown">10</span> s
+        <div class="progress"><div id="progress-bar"></div></div>
+    </footer>
+</main>
 
-        <div class="countdown">
-            Next update in: <span class="countdown-number" id="countdown">5</span> seconds
-        </div>
+<script>
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('/service-worker.js')
+                .catch(err => console.log('Service Worker registration failed:', err));
+        });
+    }
 
-        <p class="source">Data from web.sugardas.lt and web.tts.lt</p>
-    </div>
+    // Color for a temperature: blue when freezing, green when mild, orange/red when hot.
+    function toneFor(t) {
+        if (t <= -10) return '#60a5fa';
+        if (t <= 0) return '#38bdf8';
+        if (t <= 10) return '#34d399';
+        if (t <= 20) return '#a3e635';
+        if (t <= 28) return '#fbbf24';
+        return '#f87171';
+    }
 
-    <script>
-        // Register Service Worker for PWA
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/service-worker.js')
-                    .then(reg => console.log('Service Worker registered'))
-                    .catch(err => console.log('Service Worker registration failed:', err));
-            });
+    // Split values like "+0.7 C" / "+0.8 °C" into a big number and a "°C" unit.
+    document.querySelectorAll('.value').forEach(el => {
+        const raw = (el.dataset.raw || '').trim();
+        const m = raw.match(/^([+\-−]?\d+(?:[.,]\d+)?)\s*°?\s*C?$/i);
+        if (!m) {
+            el.classList.add('raw');
+            return;
+        }
+        const number = m[1].replace('−', '-');
+        el.innerHTML = '';
+        const n = document.createElement('span');
+        n.className = 'number';
+        n.textContent = number;
+        const u = document.createElement('span');
+        u.className = 'unit';
+        u.textContent = '°C';
+        el.append(n, u);
+        el.closest('.card').style.setProperty('--tone', toneFor(parseFloat(number.replace(',', '.'))));
+    });
+
+    // ---- History charts ----
+    const SERIES = {
+        temperature: { unit: '°C', digits: 1, signed: true },
+        humidity: { unit: '%', digits: 0, min: 0, max: 100 },
+        windSpeed: { unit: 'm/s', digits: 1, min: 0 }
+    };
+    const SIX_HOURS = 6 * 3600 * 1000;
+    const GAP = 11 * 60 * 1000; // break the line if more than two 5-minute buckets are missing
+    const svgNs = 'http://www.w3.org/2000/svg';
+    let history = [];
+
+    function fmt(key, v) {
+        const s = SERIES[key];
+        const text = v.toFixed(s.digits);
+        return (s.signed && v > 0 ? '+' : '') + text + ' ' + s.unit;
+    }
+
+    function hhmm(t) {
+        return new Date(t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+
+    function niceTicks(lo, hi, count) {
+        const span = hi - lo || 1;
+        const raw = span / count;
+        const mag = Math.pow(10, Math.floor(Math.log10(raw)));
+        const step = [1, 2, 2.5, 5, 10].map(m => m * mag).find(st => span / st <= count) || 10 * mag;
+        const start = Math.floor(lo / step) * step;
+        const ticks = [];
+        for (let v = start; v <= hi + step * 0.001; v += step) ticks.push(+v.toFixed(6));
+        if (ticks[ticks.length - 1] < hi) ticks.push(+(ticks[ticks.length - 1] + step).toFixed(6));
+        return ticks;
+    }
+
+    function el(name, attrs, parent) {
+        const e = document.createElementNS(svgNs, name);
+        for (const k in attrs) e.setAttribute(k, attrs[k]);
+        if (parent) parent.appendChild(e);
+        return e;
+    }
+
+    function renderChart(key) {
+        const box = document.getElementById('chart-' + key);
+        box.innerHTML = '';
+        const points = history.filter(p => p[key] !== null && p[key] !== undefined);
+        const latest = document.getElementById('latest-' + key);
+        latest.textContent = points.length ? fmt(key, points[points.length - 1][key]) : '';
+        if (points.length < 2) {
+            const empty = document.createElement('div');
+            empty.className = 'empty';
+            empty.textContent = 'Collecting data…';
+            box.appendChild(empty);
+            return;
         }
 
-        // Auto-refresh with countdown
-        let countdown = 10;
-        const countdownElement = document.getElementById('countdown');
+        const s = SERIES[key];
+        const W = box.clientWidth, H = box.clientHeight;
+        const m = { top: 8, right: 8, bottom: 22, left: 40 };
+        const now = Date.now();
+        const x0 = now - SIX_HOURS, x1 = now;
+        const values = points.map(p => p[key]);
+        let lo = Math.min(...values), hi = Math.max(...values);
+        const pad = Math.max((hi - lo) * 0.15, key === 'temperature' ? 0.5 : 1);
+        lo -= pad; hi += pad;
+        if (s.min !== undefined) lo = Math.max(lo, s.min);
+        if (s.max !== undefined) hi = Math.min(hi, s.max);
+        const ticks = niceTicks(lo, hi, 3);
+        lo = ticks[0]; hi = ticks[ticks.length - 1];
 
-        function updateCountdown() {
-            if (countdown <= 0) {
-                location.reload();
-                return;
+        const x = t => m.left + (t - x0) / (x1 - x0) * (W - m.left - m.right);
+        const y = v => m.top + (hi - v) / (hi - lo || 1) * (H - m.top - m.bottom);
+
+        const svg = el('svg', { viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': key + ' over the last 6 hours' }, box);
+
+        ticks.forEach(v => {
+            el('line', { class: 'grid-line', x1: m.left, x2: W - m.right, y1: y(v), y2: y(v) }, svg);
+            el('text', { class: 'axis-label', x: m.left - 6, y: y(v) + 4, 'text-anchor': 'end' }, svg).textContent = v;
+        });
+
+        // Hourly time labels
+        const hour = 3600 * 1000;
+        for (let t = Math.ceil(x0 / hour) * hour; t <= x1; t += hour) {
+            el('text', { class: 'axis-label', x: x(t), y: H - 4, 'text-anchor': 'middle' }, svg).textContent = hhmm(t);
+        }
+
+        // Split into segments where data is missing
+        const segments = [];
+        let seg = [];
+        points.forEach((p, i) => {
+            if (i > 0 && p.time - points[i - 1].time > GAP) { segments.push(seg); seg = []; }
+            seg.push(p);
+        });
+        segments.push(seg);
+
+        const base = y(lo);
+        segments.forEach(sg => {
+            const d = sg.map((p, i) => (i ? 'L' : 'M') + x(p.time).toFixed(1) + ',' + y(p[key]).toFixed(1)).join('');
+            if (sg.length > 1) {
+                el('path', { class: 'area', d: d + `L${x(sg[sg.length - 1].time).toFixed(1)},${base}L${x(sg[0].time).toFixed(1)},${base}Z` }, svg);
             }
+            el('path', { class: 'line', d: sg.length > 1 ? d : d + 'l0.01,0' }, svg);
+        });
 
-            countdownElement.textContent = countdown;
-            countdown--;
+        // Hover: crosshair + marker + tooltip on the nearest point
+        const cross = el('line', { class: 'crosshair', y1: m.top, y2: H - m.bottom, visibility: 'hidden' }, svg);
+        const marker = el('circle', { class: 'marker', r: 5, visibility: 'hidden' }, svg);
+        const tip = document.createElement('div');
+        tip.className = 'tooltip';
+        box.appendChild(tip);
+        const hit = el('rect', { x: m.left, y: 0, width: W - m.left - m.right, height: H, fill: 'transparent' }, svg);
+
+        function show(clientX) {
+            const r = svg.getBoundingClientRect();
+            const px = (clientX - r.left) * (W / r.width);
+            let best = points[0];
+            points.forEach(p => { if (Math.abs(x(p.time) - px) < Math.abs(x(best.time) - px)) best = p; });
+            const bx = x(best.time), by = y(best[key]);
+            cross.setAttribute('x1', bx); cross.setAttribute('x2', bx); cross.setAttribute('visibility', 'visible');
+            marker.setAttribute('cx', bx); marker.setAttribute('cy', by); marker.setAttribute('visibility', 'visible');
+            tip.innerHTML = hhmm(best.time) + ' · <b>' + fmt(key, best[key]) + '</b>';
+            tip.style.display = 'block';
+            const left = Math.min(Math.max(bx / W * r.width, 50), r.width - 50);
+            tip.style.left = left + 'px';
+            tip.style.top = Math.max(by / H * r.height - 40, -8) + 'px';
         }
+        function hide() {
+            cross.setAttribute('visibility', 'hidden');
+            marker.setAttribute('visibility', 'hidden');
+            tip.style.display = 'none';
+        }
+        hit.addEventListener('pointermove', e => show(e.clientX));
+        hit.addEventListener('pointerdown', e => show(e.clientX));
+        hit.addEventListener('pointerleave', hide);
+    }
 
-        // Update countdown immediately and then every second
-        updateCountdown();
-        setInterval(updateCountdown, 1000);
-    </script>
+    function renderTable() {
+        const rows = history.slice().reverse().map(p => {
+            const c = (k) => p[k] === null || p[k] === undefined ? '—' : p[k].toFixed(SERIES[k].digits);
+            return `<tr><td>${hhmm(p.time)}</td><td>${c('temperature')}</td><td>${c('humidity')}</td><td>${c('windSpeed')}</td></tr>`;
+        });
+        document.getElementById('history-table').innerHTML = rows.join('');
+    }
+
+    function renderAll() {
+        Object.keys(SERIES).forEach(renderChart);
+        renderTable();
+    }
+
+    fetch('/api/history')
+        .then(r => r.json())
+        .then(data => { history = data; renderAll(); })
+        .catch(err => console.log('History load failed:', err));
+
+    window.addEventListener('resize', () => { if (history.length) renderAll(); });
+
+    const clock = document.getElementById('clock');
+    function tick() {
+        clock.textContent = new Date().toLocaleString([], {
+            weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
+        });
+    }
+    tick();
+    setInterval(tick, 1000);
+
+    // Auto-refresh with countdown
+    const REFRESH_SECONDS = 10;
+    let remaining = REFRESH_SECONDS;
+    const countdownEl = document.getElementById('countdown');
+    const bar = document.getElementById('progress-bar');
+
+    function updateCountdown() {
+        if (remaining <= 0) {
+            location.reload();
+            return;
+        }
+        countdownEl.textContent = remaining;
+        bar.style.transform = 'scaleX(' + (remaining / REFRESH_SECONDS) + ')';
+        remaining--;
+    }
+    updateCountdown();
+    setInterval(updateCountdown, 1000);
+</script>
 </body>
 </html>

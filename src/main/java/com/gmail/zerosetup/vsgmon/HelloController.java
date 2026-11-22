@@ -13,11 +13,9 @@ public class HelloController {
 
     @GetMapping("/")
     public String hello(Model model) {
-        String temperature = temperatureService.getTemperature();
-        String ttsTemperature = temperatureService.getTtsTemperature();
-        model.addAttribute("message", "");
-        model.addAttribute("temperature", temperature);
-        model.addAttribute("ttsTemperature", ttsTemperature);
+        model.addAttribute("sugardas", temperatureService.getSugardas());
+        model.addAttribute("tts", temperatureService.getTts());
+        model.addAttribute("iae", temperatureService.getIae());
         return "hello";
     }
 }
