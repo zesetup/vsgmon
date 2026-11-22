@@ -74,4 +74,21 @@ class TemperatureServiceTest {
 		assertEquals(3.3, ReadingRepository.number("3.3 m/s"));
 		assertEquals(null, ReadingRepository.number("Temperature not available"));
 	}
+
+	@Test
+	void fetchNeverThrows() {
+		// Response cut off mid-body: jsoup throws an unchecked exception, not IOException
+		assertEquals(null, TemperatureService.fetch("X",
+				() -> { throw new org.jsoup.UncheckedIOException(new java.io.IOException("Read timed out")); },
+				TemperatureService::parseTts));
+		assertEquals(null, TemperatureService.fetch("X",
+				() -> { throw new java.io.IOException("Connection refused"); },
+				TemperatureService::parseTts));
+		assertEquals(null, TemperatureService.fetch("X",
+				() -> Jsoup.parse("<p>ok</p>"),
+				doc -> { throw new IllegalStateException("parser bug"); }));
+		assertEquals(new Weather("+0.8 °C", null, null, null), TemperatureService.fetch("X",
+				() -> Jsoup.parse("<strong data-weather-temperature>0.8 °C</strong>"),
+				TemperatureService::parseTts));
+	}
 }

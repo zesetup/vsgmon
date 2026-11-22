@@ -619,8 +619,11 @@
     }
 
     function renderAll() {
-        Object.keys(SERIES).forEach(renderChart);
-        renderTable();
+        // One broken chart must not stop the others from rendering
+        Object.keys(SERIES).forEach(key => {
+            try { renderChart(key); } catch (e) { console.log('Chart ' + key + ' failed:', e); }
+        });
+        try { renderTable(); } catch (e) { console.log('Table failed:', e); }
     }
 
     fetch('/api/history')

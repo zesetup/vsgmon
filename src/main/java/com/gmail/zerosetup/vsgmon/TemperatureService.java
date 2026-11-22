@@ -57,7 +57,7 @@ public class TemperatureService {
 
     // Only fresh values go to the history, never the cached fallbacks.
     private Weather fetchAndStore(String name, String url, Parser parser) {
-        Weather fresh = fetch(name, url, parser);
+        Weather fresh = fetch(name, () -> Jsoup.connect(url).timeout(10000).get(), parser);
         if (fresh != null) {
             try {
                 readings.save(name, System.currentTimeMillis(), fresh);
@@ -68,24 +68,30 @@ public class TemperatureService {
         return fresh;
     }
 
-    private interface Parser {
+    interface Loader {
+        Document load() throws IOException;
+    }
+
+    interface Parser {
         Weather parse(Document doc);
     }
 
-    private Weather fetch(String name, String url, Parser parser) {
-        log.info("Fetching weather from {}: {}", name, url);
+    /**
+     * Loads and parses one source. Never throws: any failure (network error, a response cut off
+     * mid-body, which jsoup reports as an unchecked exception, or a parser bug) returns null,
+     * so the other sources are still fetched and stored.
+     */
+    static Weather fetch(String name, Loader loader, Parser parser) {
+        log.info("Fetching weather from {}", name);
         try {
-            Document doc = Jsoup.connect(url)
-                    .timeout(10000)
-                    .get();
-            Weather weather = parser.parse(doc);
+            Weather weather = parser.parse(loader.load());
             if (weather.temperature() == null) {
                 log.warn("{} temperature not found on page", name);
             }
             log.info("Fetched {} weather: {}", name, weather);
             return weather;
-        } catch (IOException e) {
-            log.error("Error fetching {} weather: {}", name, e.getMessage(), e);
+        } catch (Exception e) {
+            log.error("Error fetching {} weather: {}", name, e.toString(), e);
             return null;
         }
     }
