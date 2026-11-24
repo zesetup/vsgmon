@@ -1,5 +1,6 @@
 package com.gmail.zerosetup.vsgmon;
 
+import org.jsoup.Connection;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -64,7 +65,7 @@ public class TemperatureService {
 
     // Only fresh values go to the history, never the cached fallbacks.
     private Weather fetchAndStore(String name, String url, Parser parser) {
-        Weather fresh = fetch(name, () -> Jsoup.connect(url).timeout(10000).get(), parser);
+        Weather fresh = fetch(name, () -> load(url), parser);
         if (fresh != null) {
             try {
                 readings.save(name, System.currentTimeMillis(), fresh);
@@ -73,6 +74,44 @@ public class TemperatureService {
             }
         }
         return fresh;
+    }
+
+    private static final String USER_AGENT =
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
+
+    /**
+     * GET with the headers a regular browser sends (altra.lt is behind Cloudflare, which may reject
+     * requests that don't look like a browser). A non-200 answer is reported with its status and
+     * Cloudflare markers, so the log shows why a source failed.
+     */
+    static Document load(String url) throws IOException {
+        Connection.Response response = Jsoup.connect(url)
+                .timeout(10000)
+                .userAgent(USER_AGENT)
+                .header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8")
+                .header("Accept-Language", "lt-LT,lt;q=0.9,en-US;q=0.8,en;q=0.7,ru;q=0.6")
+                .header("Accept-Encoding", "gzip, deflate")
+                .header("Cache-Control", "no-cache")
+                .header("Pragma", "no-cache")
+                .header("Upgrade-Insecure-Requests", "1")
+                .header("Sec-Fetch-Dest", "document")
+                .header("Sec-Fetch-Mode", "navigate")
+                .header("Sec-Fetch-Site", "none")
+                .header("Sec-Fetch-User", "?1")
+                .header("Sec-Ch-Ua", "\"Google Chrome\";v=\"131\", \"Chromium\";v=\"131\", \"Not_A Brand\";v=\"24\"")
+                .header("Sec-Ch-Ua-Mobile", "?0")
+                .header("Sec-Ch-Ua-Platform", "\"Windows\"")
+                .followRedirects(true)
+                .ignoreHttpErrors(true)
+                .execute();
+        if (response.statusCode() != 200) {
+            throw new IOException("HTTP " + response.statusCode()
+                    + " from " + url
+                    + " (server=" + response.header("Server")
+                    + ", cf-mitigated=" + response.header("cf-mitigated")
+                    + ", cf-ray=" + response.header("cf-ray") + ")");
+        }
+        return response.parse();
     }
 
     interface Loader {
